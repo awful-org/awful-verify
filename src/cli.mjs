@@ -207,15 +207,18 @@ function report(result, willRebuild = false) {
       // An unpinned fetch cannot be reproduced once that repo's HEAD moves:
       // the sha256 proves you got different bytes, it cannot get you the
       // right ones. Worth flagging on the instance, not just in the docs.
-      // Three states, not two. "no ref at all" and "a ref that can move"
-      // fail the same way in the end, but they are different mistakes and
-      // the second one looks pinned to whoever wrote it.
+      // Four states. They all end in "cannot be rebuilt from this later",
+      // but they are different mistakes: a moving ref looks pinned to
+      // whoever wrote it, and a local directory is not fetchable by anyone
+      // at all.
       const pin =
         p.origin !== "fetched" || p.pinned
           ? ""
-          : !p.ref || p.ref === "HEAD"
-            ? yellow(" no ref - not reproducible")
-            : yellow(` ${p.ref} is a tag or branch, not a sha - can move`);
+          : p.ref === "local"
+            ? yellow(" built from a directory on the build machine")
+            : !p.ref || p.ref === "HEAD"
+              ? yellow(" no ref - whatever the default branch held")
+              : yellow(` ${p.ref} is a tag or branch, not a sha - can move`);
       console.log(
         `  ${"".padEnd(10)} ${dim("plugin")} ${(p.id ?? "?").padEnd(16)} ${dim(
           where
