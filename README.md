@@ -1,7 +1,12 @@
-# awful-verify
+<p align="center">
+  <img src="logo.svg" alt="awful-verify" width="140">
+</p>
 
-Check that an [awful.chat](https://awful.chat) instance runs the code it says
-it runs.
+<h1 align="center">awful-verify</h1>
+
+<p align="center">
+  Check that an <a href="https://awful.chat">awful.chat</a> instance runs the code it says it runs.
+</p>
 
 ```sh
 npx github:awful-org/awful-verify chat.example.com
@@ -28,22 +33,28 @@ fetch those plugins at those refs, build, and compare the result against every
 file the instance actually served.
 
 ```
-  https://chat.example.com
-  fetched 2026-08-31T16:41:02.118Z
 
-  claims     github.com/awful-org/awful.chat @ ee0db6d2 v0.0.0
+  https://dev.awful.chat
+  fetched 2026-08-31T16:55:05.814Z
+
+  claims     github.com/awful-org/awful.chat @ c3447c65 v0.0.0
              plugin ping             in this repository
+             plugin poll             in this repository
              plugin soundboard       awful-org/awfully-awesome@d00d9db
+             plugin steam-roulette   awful-org/awfully-awesome@d00d9db
              plugin waffle-party     awful-org/awfully-awesome@d00d9db
+             plugin wheel            in this repository
   files      331 hashed, 21.0 MB
              30 from the precache manifest, 301 found by following what the code loads
 
-  digest     5561afe828f51c445d02f7ffa67793ad10195cf3b8b746fd98add8d80fd1b7b6
+  digest     099a4ef350248f8e02cb0f5c6825f4587c18254d3e01d2a7cf2f7c8577de69b8
+
+  published    no build has been published for this commit
 
   rebuild    cloning github.com/awful-org/awful.chat...
-  rebuild    checking out ee0db6d2...
+  rebuild    checking out c3447c65...
   rebuild    installing dependencies...
-  rebuild    fetching plugins: awful-org/awfully-awesome#d00d9db...
+  rebuild    fetching plugins: awful-org/awfully-awesome@d00d9db...
   rebuild    building...
   rebuild    comparing...
 
@@ -52,9 +63,9 @@ file the instance actually served.
              12 built file(s) were never served, so not checked (none of them executable)
 
   sources
-    github.com/awful-org/awful.chat @ ee0db6d2937d
+    github.com/awful-org/awful.chat @ c3447c655501
       the app, ping, poll, wheel
-      https://github.com/awful-org/awful.chat/tree/ee0db6d2937d
+      https://github.com/awful-org/awful.chat/tree/c3447c655501683abf1db32e52c7ef1feb69286f
     github.com/awful-org/awfully-awesome @ d00d9db
       soundboard, steam-roulette, waffle-party
       https://github.com/awful-org/awfully-awesome/tree/d00d9db
