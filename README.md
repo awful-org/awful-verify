@@ -86,8 +86,8 @@ for anyone who trusts the project's source and does not want to install
 anything:
 
 ```
-  published    matches the build GitHub Actions produced for this commit
-               you are trusting that build, not this instance
+  ci build   matches - GitHub Actions built this commit into these exact bytes
+             that is CI's word, not this instance's
 ```
 
 That is a different statement from a rebuild, not a weaker version of it. The

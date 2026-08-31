@@ -178,7 +178,7 @@ function fmtBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function report(result, willRebuild = false) {
+function report(result) {
   const ok = result.files.filter((f) => f.hash);
   const failed = result.files.filter((f) => !f.hash);
 
@@ -266,18 +266,6 @@ function report(result, willRebuild = false) {
   }
 
   console.log(`\n  ${bold("digest")}     ${green(result.digest)}\n`);
-  // Only when this IS the answer. With a rebuild following, telling someone
-  // to go find a friend to compare digests with is noise in front of a
-  // verdict that is about to arrive.
-  if (!willRebuild) {
-    console.log(
-      dim(
-        "\n  Compare this with someone else who ran it against the same instance.\n" +
-          "  Same digest, same bytes for every file listed. Different, and one\n" +
-          "  of you is being served something the other is not.\n"
-      )
-    );
-  }
 }
 
 function reportRebuild(out, result) {
@@ -425,7 +413,7 @@ async function main(argv) {
   if (json && why) {
     console.log(JSON.stringify({ ...result, published }, null, 2));
   } else if (!json) {
-    report(result, !why);
+    report(result);
     reportPublished(published, result);
   }
 
@@ -466,15 +454,17 @@ async function main(argv) {
 
   if (!json && published.status !== "verified") {
     console.log(`  ${yellow("not rebuilt")}  ${why}`);
-    if (published.status === "no-record" || published.status === "different-configuration") {
-      console.log(
-        dim(
-          "               and no published build describes this one, so what you\n" +
-            "               have is a fingerprint, not a verdict - compare it with\n" +
-            "               someone else's run of the same instance\n"
-        )
-      );
-    }
+    // Every remaining status means nobody checked these bytes against
+    // anything - including a fork, which is the case most likely to be read
+    // as a pass just because nothing went red.
+    console.log(
+      dim(
+        "\n  So nothing above is a verdict on this instance. The digest becomes one\n" +
+          "  the moment somebody else runs this too: same digest, same bytes for\n" +
+          "  every file listed. Different, and one of you is being served something\n" +
+          "  the other is not.\n"
+      )
+    );
   }
   if (published.status === "mismatch") return 1;
   // Unreadable files are a real finding, not a crash.
@@ -488,50 +478,60 @@ async function main(argv) {
  * available without a toolchain, and beside a rebuild it is a second,
  * independent party saying the same thing about the same commit.
  */
+/**
+ * What the project's CI said this commit builds to.
+ *
+ * Labelled "ci build" rather than "published", which named the row without
+ * saying what it compared against - and read as a property of the instance
+ * rather than as a second opinion about it. The whole value of this line is
+ * whose word it is.
+ */
 function reportPublished(published, result) {
-  const line = (label, rest) => console.log(`  ${label.padEnd(12)} ${rest}`);
+  // Ten, matching claims / files / digest above it.
+  const line = (label, rest) => console.log(`  ${label.padEnd(10)} ${rest}`);
+  const indent = "             ";
   if (published.status === "verified") {
     line(
-      green("published"),
-      `matches the build GitHub Actions produced for this commit\n` +
-        `               ${dim("you are trusting that build, not this instance")}`
+      green("ci build"),
+      "matches - GitHub Actions built this commit into these exact bytes\n" +
+        indent + dim("that is CI's word, not this instance's")
     );
   } else if (published.status === "mismatch") {
     line(
-      red("PUBLISHED"),
-      `does NOT match the build published for ${String(result.claim?.commit).slice(0, 8)}` +
+      red("CI BUILD"),
+      `does NOT match what CI built for ${String(result.claim?.commit).slice(0, 8)}` +
         ` - ${published.differing.length} file(s) differ`
     );
     for (const d of published.differing.slice(0, 10)) {
-      console.log(`               ${red("!")} ${d.path}`);
+      console.log(indent + red("!") + " " + d.path);
     }
     if (published.differing.length > 10) {
-      console.log(dim(`               ...and ${published.differing.length - 10} more`));
+      console.log(dim(indent + "...and " + (published.differing.length - 10) + " more"));
     }
     if (published.configurationDiffers) {
       // Its own account of itself, so it is offered as an explanation and
-      // labelled as one. Letting it stand as the verdict was a bypass.
+      // labelled as one, never as the verdict.
       console.log(
         dim(
-          "               this instance says it runs a different plugin set, which\n" +
-            "               would explain it - but that is its own claim and nothing\n" +
-            "               here checks it. Rebuild to settle it."
+          indent + "this instance says it runs a different plugin set, which\n" +
+            indent + "would explain it - but that is its own claim and nothing\n" +
+            indent + "here checks it. Rebuild to settle it."
         )
       );
     }
   } else if (published.status === "not-upstream") {
     line(
-      dim("published"),
-      dim("not checked - build records exist for " + UPSTREAM + " only,\n" +
-          "               and this instance is built from " + published.repository)
+      dim("ci build"),
+      dim("not applicable - CI publishes builds for " + UPSTREAM + "\n" +
+          indent + "only, and this is built from " + published.repository)
     );
   } else if (published.status === "different-configuration") {
     line(
-      dim("published"),
-      dim("a build exists for this commit, but with a different plugin set")
+      dim("ci build"),
+      dim("CI built this commit, but with a different plugin set")
     );
   } else {
-    line(dim("published"), dim("no build has been published for this commit"));
+    line(dim("ci build"), dim("CI has published no build for this commit"));
   }
   console.log("");
 }
