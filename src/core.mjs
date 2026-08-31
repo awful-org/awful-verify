@@ -434,10 +434,26 @@ export function samePluginSet(a = [], b = []) {
  */
 export function checkAgainstRecord(result, record) {
   if (!record) return { status: "no-record" };
-  if (!samePluginSet(result.claim?.plugins, record.plugins)) {
-    return { status: "different-configuration" };
-  }
   if (record.digest === result.digest) return { status: "verified", record };
+
+  // The DIGEST decides, and it is compared first.
+  //
+  // This used to test the plugin set first and return a soft
+  // "different-configuration" when it differed - which handed an operator a
+  // one-line bypass. The plugin list lives in the declaration, the
+  // declaration is written by the operator and is not part of what gets
+  // hashed, so adding a single invented plugin to it made a byte-level
+  // mismatch report as a benign configuration difference and exit 0. The
+  // served bytes were never compared at all.
+  //
+  // A plugin set that differs is still worth saying, because it is the
+  // innocent explanation for a mismatch and it is usually the true one. But
+  // it is the instance's own unverified account of itself, so it is a note
+  // attached to the mismatch, never a reason to stop looking.
+  const configurationDiffers = !samePluginSet(
+    result.claim?.plugins,
+    record.plugins
+  );
   const differing = [];
   const published = record.files ?? {};
   for (const f of result.files) {
@@ -452,7 +468,7 @@ export function checkAgainstRecord(result, record) {
       differing.push({ path, published: published[path], served: null });
     }
   }
-  return { status: "mismatch", record, differing };
+  return { status: "mismatch", record, differing, configurationDiffers };
 }
 
 /**

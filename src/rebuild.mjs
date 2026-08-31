@@ -193,6 +193,14 @@ export async function compareToDist(fingerprintResult, distDir) {
 export async function rebuild(result, opts = {}) {
   const { allowFork = false, onStep = () => {}, keep } = opts;
   const claim = result.claim;
+  // Validated before it reaches git, symmetrically with the published-record
+  // lookup. It is a single execFile argument so there is no shell to inject
+  // into, but a value starting with "-" would be read as an option.
+  if (claim?.commit && !/^[0-9a-f]{7,64}$/i.test(String(claim.commit))) {
+    throw new Error(
+      `this instance declares a commit that is not a sha: ${String(claim.commit).slice(0, 64)}`
+    );
+  }
   if (!claim?.repository || !claim?.commit) {
     throw new Error(
       "this instance does not declare a repository and commit, so there is " +

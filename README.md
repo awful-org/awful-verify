@@ -85,11 +85,13 @@ rebuild says *this source builds into these bytes on my machine*. If you
 already trust the source, the first is enough and costs one HTTP request. If
 you would rather not trust a CI system either, rebuild.
 
-A record describes a commit **and** a plugin set - plugins compile into the
-app, so an instance running a different set is a different bundle and is
-supposed not to match. When no record covers an instance's configuration the
-report says so, which is not a failure: it means nobody has published a build
-of exactly that, and rebuilding is how it gets checked.
+A record describes a commit **and** a plugin set, because plugins compile
+into the app. An instance running a different set genuinely has different
+bytes, so its digest will not match the published one - the report says the
+instance says so, and says that it has not checked that claim, because the
+plugin list is written by the operator and is not part of what gets hashed.
+It is an explanation, not an excuse: a digest that does not match is reported
+as a mismatch either way, and rebuilding is what settles it.
 
 The address those records are fetched from is compiled into this tool and is
 never taken from the instance. An instance able to name its own source of
@@ -101,11 +103,17 @@ pass. `--no-published` skips the lookup.
 An operator writes that file, and it is not part of what gets hashed. It could
 say anything.
 
-It does not need to be trusted, because the rebuild settles it. An instance
-that hides a plugin builds a bundle without that plugin, and what it serves
-will not match. An instance naming a commit it did not build fails the same
-way. The declaration is a claim about what to check, and checking it is the
-entire operation - lying in it buys nothing.
+It does not need to be trusted, because the bytes settle it. An instance that
+hides a plugin builds a bundle without that plugin, and what it serves will
+not match. An instance naming a commit it did not build fails the same way.
+The declaration says what to check; checking it is the entire operation.
+
+That property has to be maintained deliberately. An earlier version compared
+the declared plugin set *before* the digest and reported a difference as a
+benign "different configuration" - so adding one invented plugin entry made a
+byte-level mismatch exit 0 without the served bytes ever being compared. The
+digest is compared first now, and anything the declaration says about why is
+attached to the result as the instance's own unverified account.
 
 ## What a match proves, and what it does not
 

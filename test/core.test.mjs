@@ -389,25 +389,12 @@ test("rebuild refuses an instance that declares nothing to build", async () => {
 
 import { checkAgainstRecord, publishedRecord, samePluginSet } from "../src/core.mjs";
 
-// A record describes a commit AND a plugin set. Plugins compile into the app,
-// so an instance running a different set is a different bundle and is
-// supposed not to match - reporting that as tampering would cry wolf at
-// every self-hoster who added one.
-test("a record for a different plugin set is not a mismatch", () => {
-  const result = {
-    claim: { plugins: [{ id: "a", origin: "in-tree" }] },
-    digest: "deadbeef",
-    files: [],
-  };
-  const record = {
-    plugins: [
-      { id: "a", origin: "in-tree" },
-      { id: "b", origin: "fetched", source: "o/r", ref: "v1" },
-    ],
-    digest: "deadbeef",
-  };
-  assert.equal(checkAgainstRecord(result, record).status, "different-configuration");
-});
+// This test used to assert that a differing plugin set short-circuited to a
+// soft "different-configuration" result. That WAS the behaviour, and it was
+// a bypass: the plugin list is operator-written and unhashed, so one invented
+// entry stopped the bytes being compared at all. The digest decides now, and
+// the plugin difference rides along as an explanation - see the phantom
+// plugin test below. Kept as a note so the old shape is not reintroduced.
 
 test("samePluginSet ignores order but not identity", () => {
   const a = [
@@ -475,4 +462,66 @@ test("a commit that is not a hex sha is never fetched", async () => {
   };
   assert.equal(await publishedRecord("../../evil", { fetchImpl: spy }), null);
   assert.equal(called, false);
+});
+
+// The bypass this ordering exists to prevent. The declaration is written by
+// the operator and is not part of what gets hashed, so gating the digest
+// comparison on the plugin set let one invented plugin entry turn a
+// byte-level mismatch into a benign "different configuration" and exit 0 -
+// without the served bytes ever being compared.
+test("a phantom plugin cannot soften a digest mismatch", () => {
+  const tampered = {
+    claim: {
+      plugins: [
+        { id: "wheel", origin: "in-tree" },
+        { id: "phantom", origin: "fetched", source: "who/cares", ref: "v1" },
+      ],
+    },
+    digest: "TAMPERED",
+    files: [{ path: "/assets/app.js", hash: "backdoored" }],
+  };
+  const record = {
+    plugins: [{ id: "wheel", origin: "in-tree" }],
+    digest: "GENUINE",
+    files: { "/assets/app.js": "honest" },
+  };
+  const out = checkAgainstRecord(tampered, record);
+  assert.equal(out.status, "mismatch");
+  assert.deepEqual(out.differing.map((d) => d.path), ["/assets/app.js"]);
+  // Still reported, because it is the usual innocent explanation - but as
+  // the instance's own claim attached to a mismatch, not as a verdict.
+  assert.equal(out.configurationDiffers, true);
+});
+
+// The honest case still has to read as benign: a self-hoster who added a
+// plugin has a different bundle on purpose, and their digest legitimately
+// differs from the canonical record.
+test("a different plugin set with no record match is still a mismatch, flagged as such", () => {
+  const out = checkAgainstRecord(
+    { claim: { plugins: [{ id: "extra", origin: "in-tree" }] }, digest: "x", files: [] },
+    { plugins: [], digest: "y", files: {} }
+  );
+  assert.equal(out.status, "mismatch");
+  assert.equal(out.configurationDiffers, true);
+});
+
+// A matching digest is the end of the argument: the bytes ARE the published
+// build, whatever the declaration says about plugins.
+test("a matching digest verifies even if the declaration lies about plugins", () => {
+  const out = checkAgainstRecord(
+    { claim: { plugins: [{ id: "lie", origin: "in-tree" }] }, digest: "same", files: [] },
+    { plugins: [], digest: "same" }
+  );
+  assert.equal(out.status, "verified");
+});
+
+test("rebuild refuses a commit that is not a sha", async () => {
+  await assert.rejects(
+    () =>
+      rebuild({
+        claim: { repository: "github.com/awful-org/awful.chat", commit: "--upload-pack=evil" },
+        files: [],
+      }),
+    /not a sha/
+  );
 });

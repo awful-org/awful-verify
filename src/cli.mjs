@@ -256,11 +256,17 @@ function report(result, willRebuild = false) {
 function reportRebuild(out, result) {
   const matched = out.identical.length;
   const failed = out.differing.length + out.notBuilt.length;
+  const withheld = (out.notServedExecutable ?? []).length;
   console.log("");
-  if (!failed) {
+  if (!failed && !withheld) {
     console.log(
       `  ${green("verified")}   ${matched} files, byte-identical to a build of ` +
         `everything\n             this instance declares`
+    );
+  } else if (!failed) {
+    console.log(
+      `  ${yellow("INCOMPLETE")} ${matched} served files match, but the build produced ` +
+        `${withheld}\n             executable file(s) this instance would not serve`
     );
   } else {
     console.log(
@@ -283,10 +289,10 @@ function reportRebuild(out, result) {
         `             ${out.notServed.length} built file(s) were never served, so not checked`
       ) +
         (exe.length
-          ? ` ${yellow(`- ${exe.length} of them executable`)}`
+          ? ` ${red(`- ${exe.length} of them executable`)}`
           : dim(" (none of them executable)"))
     );
-    for (const p of exe) console.log(`             ${yellow("?")} ${p}`);
+    for (const p of exe) console.log(`             ${red("!")} ${p}`);
   }
   if (out.unpinned) {
     console.log(
@@ -412,8 +418,16 @@ async function main(argv) {
     } else {
       reportRebuild(out, result);
     }
+    // An executable file the build produced and the instance never served
+    // is not a footnote. It is how a targeted instance hides a backdoored
+    // chunk: serve it to users, 404 it to whoever looks like a verifier, and
+    // it drops out of the walk entirely. Saying "verified" over that
+    // overstates what was checked.
     const bad =
-      out.differing.length || out.notBuilt.length || published.status === "mismatch";
+      out.differing.length ||
+      out.notBuilt.length ||
+      (out.notServedExecutable ?? []).length ||
+      published.status === "mismatch";
     return bad ? 1 : 0;
   }
 
@@ -460,6 +474,17 @@ function reportPublished(published, result) {
     }
     if (published.differing.length > 10) {
       console.log(dim(`               ...and ${published.differing.length - 10} more`));
+    }
+    if (published.configurationDiffers) {
+      // Its own account of itself, so it is offered as an explanation and
+      // labelled as one. Letting it stand as the verdict was a bypass.
+      console.log(
+        dim(
+          "               this instance says it runs a different plugin set, which\n" +
+            "               would explain it - but that is its own claim and nothing\n" +
+            "               here checks it. Rebuild to settle it."
+        )
+      );
     }
   } else if (published.status === "different-configuration") {
     line(
