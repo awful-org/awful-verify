@@ -152,6 +152,31 @@ A difference cannot be attributed to one component. Plugins compile *into* the
 app, so everything shares one bundle: you learn that something does not match,
 and which files, not whose fault it is.
 
+And it says nothing about whether the code is any *good*. A match means the
+bytes came from source you can read. Reading it is still a person's job.
+
+## It checks the app, not the servers behind it
+
+This hashes what your browser downloads. An awful.chat instance also runs
+three server-side services, and **none of them are checked here** - they serve
+no files to hash, so none of them are visible to this tool at all.
+
+| | handles | can see |
+| --- | --- | --- |
+| **relay** | peer discovery, offline mailbox, link previews, TURN credentials | peer ids and room codes, and that an identity has mail waiting. Not message or file content: traffic between peers is encrypted end to end, and mailbox blobs are sealed to the recipient. |
+| **SFU** | video and screen sharing in calls | **the video and screen streams it routes.** Voice does not pass through it. |
+| **coturn** | relaying call media between peers that cannot connect directly | who is talking to whom, and how much traffic there is. |
+
+Their addresses come from `/config.json`, which is deliberately excluded from
+the digest, because those values are *supposed* to differ between instances -
+it is what lets two instances of one build match at all. The consequence is
+worth stating plainly: **an instance can point at any relay, SFU or TURN
+server it likes and still verify perfectly.**
+
+Verifying the code tells you what the page will do. It does not tell you where
+the operator sends what leaves it. `/config.json` is one request and is not
+minified - read it yourself if that matters to you.
+
 ## Requirements, and the risk
 
 Needs `git`, `pnpm` and `node` on PATH, a few minutes, and a few hundred MB of

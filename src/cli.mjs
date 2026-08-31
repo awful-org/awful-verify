@@ -67,6 +67,22 @@ WHAT IT DOES, BY DEFAULT
   is why a repository that is not upstream is refused until you pass
   --allow-fork, having read what you are about to build.
 
+WHAT IS NOT CHECKED
+
+  The app, not the servers behind it. This hashes what a browser downloads.
+  An instance also runs a relay (peer discovery, offline mailbox, link
+  previews), an SFU (video and screen sharing - it can see the streams it
+  routes; voice does not pass through it), and a TURN server (relays call
+  media between peers that cannot connect directly). None of them serve
+  files to hash, so none of them are visible here.
+
+  Their addresses come from /config.json, which is deliberately excluded
+  from the digest because those values are supposed to differ between
+  instances. So an instance can point at any relay, SFU or TURN server and
+  still verify perfectly. Verifying the code tells you what the page will
+  do, not where the operator sends what leaves it. Read /config.json
+  yourself if that matters.
+
 WHAT A MATCH PROVES
 
   That the instance runs exactly the sources it names. Not that those sources
