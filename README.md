@@ -96,6 +96,11 @@ rebuild says *this source builds into these bytes on my machine*. If you
 already trust the source, the first is enough and costs one HTTP request. If
 you would rather not trust a CI system either, rebuild.
 
+A fork is not looked up at all. Records are published for the upstream
+repository only, so a fork's commit would always miss - and reporting that as
+"no build has been published" would read as *not yet* when the truth is
+*never, and not here*. Rebuilding is the check that applies to a fork.
+
 A record describes a commit **and** a plugin set, because plugins compile
 into the app. An instance running a different set genuinely has different
 bytes, so its digest will not match the published one - the report says the

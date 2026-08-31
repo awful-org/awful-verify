@@ -527,3 +527,45 @@ test("rebuild refuses a commit that is not a sha", async () => {
     /not a sha/
   );
 });
+
+// Records are published for upstream only. Looking a fork's commit up there
+// always misses, and reporting that as "no build has been published for this
+// commit" reads as "not yet" when the truth is "never, and not here".
+test("a fork is not looked up in upstream's build records", async () => {
+  let fetched = false;
+  const fetchImpl = async (url) => {
+    const path = new URL(url).pathname;
+    if (path.startsWith("/awful-org/awful.chat/builds/")) fetched = true;
+    if (path === "/.well-known/awful-build.json") {
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        arrayBuffer: async () =>
+          new TextEncoder().encode(
+            JSON.stringify({
+              repository: "github.com/someone/fork",
+              commit: "a".repeat(40),
+              plugins: [],
+            })
+          ).buffer,
+      };
+    }
+    if (path === "/sw.js") {
+      return {
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => new TextEncoder().encode('[{"url":"/x.js"}]').buffer,
+      };
+    }
+    if (path === "/x.js") {
+      return { ok: true, status: 200, arrayBuffer: async () => new TextEncoder().encode("x").buffer };
+    }
+    return { ok: false, status: 404 };
+  };
+  const r = await fingerprint("https://fork.example", { fetchImpl });
+  assert.equal(r.claim.repository, "github.com/someone/fork");
+  // fingerprint() itself must not reach for a record; that is the CLI's call,
+  // and it declines for a fork.
+  assert.equal(fetched, false);
+});

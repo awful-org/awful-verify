@@ -143,8 +143,10 @@ WITHOUT A TOOLCHAIN
   name its own source of truth would point at hashes it wrote itself.
 
   A record describes a commit AND a plugin set, so an instance running a
-  different set is reported as not covered rather than as a mismatch.
-  --no-published skips the lookup.
+  different set is reported as not covered rather than as a mismatch. A fork
+  is not looked up at all: records are published for the upstream repository
+  only, so a fork's commit would always miss, and rebuilding is the check
+  that applies to it. --no-published skips the lookup.
 
   --no-rebuild fingerprints and stops: every file hashed, reduced to one
   digest over "path\0hash" sorted, so it does not depend on fetch order. That
@@ -405,13 +407,19 @@ async function main(argv) {
 
   const result = await fingerprint(origin);
 
-  // One fetch, always. It is the only check available to somebody with no
-  // toolchain, and alongside a rebuild it is a second, independent statement
-  // about the same commit.
-  const record = argv.includes("--no-published")
-    ? null
-    : await publishedRecord(result.claim?.commit);
-  const published = checkAgainstRecord(result, record);
+  // One fetch, when it can mean anything. Records are published for upstream
+  // only, so looking a fork's commit up there answers a question nobody
+  // asked: it would always miss, and "no build has been published for this
+  // commit" reads as "not yet" when the truth is "never, and not here".
+  const declaredRepo = result.claim?.repository;
+  const foreign = declaredRepo && declaredRepo !== UPSTREAM;
+  const record =
+    argv.includes("--no-published") || foreign
+      ? null
+      : await publishedRecord(result.claim?.commit);
+  const published = foreign
+    ? { status: "not-upstream", repository: declaredRepo }
+    : checkAgainstRecord(result, record);
 
   const why = await cannotRebuild(result, argv);
   if (json && why) {
@@ -511,6 +519,12 @@ function reportPublished(published, result) {
         )
       );
     }
+  } else if (published.status === "not-upstream") {
+    line(
+      dim("published"),
+      dim("not checked - build records exist for " + UPSTREAM + " only,\n" +
+          "               and this instance is built from " + published.repository)
+    );
   } else if (published.status === "different-configuration") {
     line(
       dim("published"),
