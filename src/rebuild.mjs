@@ -21,6 +21,7 @@
  */
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { rmSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -234,6 +235,26 @@ export async function rebuild(result, opts = {}) {
     if (!keep) await rm(dir, { recursive: true, force: true });
   };
 
+  // Ctrl-C is not an edge case here: this runs for minutes and people
+  // interrupt it. Without this the checkout and its node_modules - several
+  // hundred MB - are left in the temp directory with nothing to say they are
+  // there. Synchronous removal, because an async one would not finish before
+  // the process exits.
+  const onSignal = (signal) => {
+    if (!keep) {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Nothing useful to do while dying; the OS clears tmp eventually.
+      }
+    }
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  };
+  const sigint = () => onSignal("SIGINT");
+  const sigterm = () => onSignal("SIGTERM");
+  process.once("SIGINT", sigint);
+  process.once("SIGTERM", sigterm);
+
   try {
     const url = `https://${claim.repository}.git`;
     onStep(`cloning ${claim.repository}`);
@@ -320,6 +341,8 @@ export async function rebuild(result, opts = {}) {
       links: sourceLinks(claim),
     };
   } finally {
+    process.off("SIGINT", sigint);
+    process.off("SIGTERM", sigterm);
     await cleanup();
   }
 }

@@ -129,10 +129,13 @@ Two things in that list deserve attention on sight:
   checked against. A match there proves the code is *readable*, not that it is
   trustworthy and not that anyone has read it. A backdoored fork matches its
   own source every time. Rebuilding one requires `--allow-fork`.
-- **A plugin whose ref is not pinned.** Its code can change after the instance
-  was built, so what gets fetched now may not be what it ran. The declaration
-  records the sha256 of each fetched tarball, and a mismatch against what we
-  fetch is reported.
+- **A plugin not pinned to a commit sha.** Only a sha names bytes. A build
+  that fetched a default branch is obviously unreproducible, but so is one
+  that used a tag or a branch name, because either can be moved after the
+  fact - and that one looks pinned to whoever wrote it. Both are reported,
+  distinctly. The declaration records the sha256 of each fetched tarball, so
+  when the code has moved since the instance was built, that is reported
+  too.
 
 A difference cannot be attributed to one component. Plugins compile *into* the
 app, so everything shares one bundle: you learn that something does not match,

@@ -79,10 +79,11 @@ WHAT A MATCH PROVES
     - a repository that is not the upstream one. Forks are legitimate, but a
       fork's operator controls both the instance and the source it is checked
       against, so a match there proves the code is READABLE, not trustworthy.
-    - a plugin whose ref is not pinned. Its code can change after the
-      instance was built, so what gets fetched now may not be what it ran.
-      The declaration records each fetched tarball's sha256, and a mismatch
-      against what we fetch is reported.
+    - a plugin not pinned to a commit sha. Only a sha names bytes: a tag or
+      a branch can be moved afterwards, and that one looks pinned to
+      whoever wrote it. The declaration records each fetched tarball's
+      sha256, so code that has moved since the instance was built is
+      reported too.
 
   A difference cannot be attributed to one component. Plugins compile INTO
   the app, so everything shares a bundle: you learn that something does not
@@ -190,10 +191,15 @@ function report(result, willRebuild = false) {
       // An unpinned fetch cannot be reproduced once that repo's HEAD moves:
       // the sha256 proves you got different bytes, it cannot get you the
       // right ones. Worth flagging on the instance, not just in the docs.
+      // Three states, not two. "no ref at all" and "a ref that can move"
+      // fail the same way in the end, but they are different mistakes and
+      // the second one looks pinned to whoever wrote it.
       const pin =
-        p.origin === "fetched" && !p.pinned
-          ? yellow(" unpinned - not reproducible")
-          : "";
+        p.origin !== "fetched" || p.pinned
+          ? ""
+          : !p.ref || p.ref === "HEAD"
+            ? yellow(" no ref - not reproducible")
+            : yellow(` ${p.ref} is a tag or branch, not a sha - can move`);
       console.log(
         `  ${"".padEnd(10)} ${dim("plugin")} ${(p.id ?? "?").padEnd(16)} ${dim(
           where
