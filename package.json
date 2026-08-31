@@ -1,0 +1,16 @@
+{
+  "name": "awful-verify",
+  "version": "0.1.0",
+  "description": "Fingerprint an awful.chat instance and check it is serving the code it claims.",
+  "type": "module",
+  "bin": { "awful-verify": "src/cli.mjs" },
+  "exports": { ".": "./src/core.mjs" },
+  "files": ["src", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test" },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awful-org/awful-verify.git"
+  }
+}
