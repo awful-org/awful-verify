@@ -72,7 +72,11 @@ export function pluginSources(plugins = []) {
   for (const p of plugins) {
     if (p?.origin !== "fetched" || !p.source) continue;
     if (!p.pinned) unpinned = true;
-    const spec = p.pinned && p.ref ? `${p.source}#${p.ref}` : p.source;
+    // @, not #. This is handed straight to a child process so a # would
+    // survive, but the same string is what a person copies into a .env to
+    // reproduce a build by hand - and there it would be truncated at the #,
+    // silently unpinning what they were trying to pin.
+    const spec = p.pinned && p.ref ? `${p.source}@${p.ref}` : p.source;
     if (!seen.has(spec)) seen.set(spec, true);
   }
   return { sources: [...seen.keys()].join(","), unpinned };

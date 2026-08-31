@@ -318,7 +318,9 @@ test("pluginSources reproduces the declared set, one entry per repository", () =
     { id: "a", origin: "fetched", source: "o/r", ref: "d00d9db", pinned: true },
     { id: "b", origin: "fetched", source: "o/r", ref: "d00d9db", pinned: true },
   ]);
-  assert.equal(sources, "o/r#d00d9db");
+  // @, not #: this string is also what a person copies into a .env to
+  // reproduce a build by hand, and there a # truncates it.
+  assert.equal(sources, "o/r@d00d9db");
   assert.equal(unpinned, false);
 });
 
