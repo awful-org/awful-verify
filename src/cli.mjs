@@ -453,7 +453,7 @@ async function main(argv) {
   }
 
   if (!json && published.status !== "verified") {
-    console.log(`  ${yellow("not rebuilt")}  ${why}`);
+    console.log(`  ${yellow("no rebuild".padEnd(10))} ${why}`);
     // Every remaining status means nobody checked these bytes against
     // anything - including a fork, which is the case most likely to be read
     // as a pass just because nothing went red.
@@ -487,18 +487,28 @@ async function main(argv) {
  * whose word it is.
  */
 function reportPublished(published, result) {
-  // Ten, matching claims / files / digest above it.
-  const line = (label, rest) => console.log(`  ${label.padEnd(10)} ${rest}`);
+  // Pad the PLAIN label, then colour it. Padding the coloured string counts
+  // the ansi escapes, which already exceed the width, so it never padded at
+  // all and this row sat hard against its own text while every other row
+  // lined up. Ten matches claims / files / digest above.
+  const line = (label, paint, rest) =>
+    console.log(`  ${paint(label.padEnd(10))} ${rest}`);
   const indent = "             ";
+  // The durable reason a CI record can never describe this instance: it
+  // compiles in plugins CI does not build. Saying only "no build for this
+  // commit" invites waiting for one that is never coming.
+  const fetched = (result.claim?.plugins ?? []).filter(
+    (p) => p?.origin === "fetched"
+  ).length;
   if (published.status === "verified") {
     line(
-      green("ci build"),
+      "ci build", green,
       "matches - GitHub Actions built this commit into these exact bytes\n" +
         indent + dim("that is CI's word, not this instance's")
     );
   } else if (published.status === "mismatch") {
     line(
-      red("CI BUILD"),
+      "CI BUILD", red,
       `does NOT match what CI built for ${String(result.claim?.commit).slice(0, 8)}` +
         ` - ${published.differing.length} file(s) differ`
     );
@@ -521,17 +531,27 @@ function reportPublished(published, result) {
     }
   } else if (published.status === "not-upstream") {
     line(
-      dim("ci build"),
+      "ci build", dim,
       dim("not applicable - CI publishes builds for " + UPSTREAM + "\n" +
           indent + "only, and this is built from " + published.repository)
     );
   } else if (published.status === "different-configuration") {
     line(
-      dim("ci build"),
+      "ci build", dim,
       dim("CI built this commit, but with a different plugin set")
     );
+  } else if (fetched) {
+    // No record, and there could not be a useful one: CI builds this
+    // repository alone.
+    line(
+      "ci build", dim,
+      dim(
+        `not applicable - this instance compiles in ${fetched} fetched plugin(s),\n` +
+          indent + "which CI does not build. Rebuilding is the check for it."
+      )
+    );
   } else {
-    line(dim("ci build"), dim("CI has published no build for this commit"));
+    line("ci build", dim, dim("CI has published no build for this commit"));
   }
   console.log("");
 }
