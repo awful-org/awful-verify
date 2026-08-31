@@ -277,3 +277,7 @@ fingerprinting logic can back a web version without a second implementation.
 ```sh
 node --test
 ```
+
+## License
+
+[MIT](LICENSE).

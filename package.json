@@ -10,9 +10,10 @@
     ".": "./src/core.mjs"
   },
   "files": [
-    "src",
+    "LICENSE",
     "README.md",
-    "logo.svg"
+    "logo.svg",
+    "src"
   ],
   "engines": {
     "node": ">=18"
@@ -20,7 +21,7 @@
   "scripts": {
     "test": "node --test"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/awful-org/awful-verify.git"
