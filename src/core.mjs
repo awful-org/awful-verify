@@ -464,6 +464,31 @@ export function checkAgainstRecord(result, record) {
       differing.push({ path, published: published[path], served: null });
     }
   }
+  // A record is a build of the app's own repository, so it has no fetched
+  // plugins in it. An instance that compiles some in cannot produce that
+  // digest, at this commit or any other, and a difference therefore says
+  // nothing about tampering. Reporting it as a mismatch cries wolf at every
+  // instance that installed a plugin.
+  //
+  // It is NOT a pass. Nobody compared these bytes to anything, and the list
+  // saying "I have plugins" is written by the operator - believing it far
+  // enough to call the instance fine is exactly the bypass this ordering
+  // exists to refuse. Inconclusive, and a rebuild settles it.
+  const inRecord = new Set(
+    (record.plugins ?? []).map((p) => `${p.id}@${p.origin}`)
+  );
+  const unbuilt = (result.claim?.plugins ?? []).filter(
+    (p) => p?.origin === "fetched" && !inRecord.has(`${p.id}@${p.origin}`)
+  );
+  if (unbuilt.length) {
+    return {
+      status: "not-comparable",
+      record,
+      differing,
+      configurationDiffers,
+      unbuiltPlugins: unbuilt.map((p) => p.id),
+    };
+  }
   return { status: "mismatch", record, differing, configurationDiffers };
 }
 

@@ -101,6 +101,13 @@ repository only, so a fork's commit would always miss - and reporting that as
 "no build has been published" would read as *not yet* when the truth is
 *never, and not here*. Rebuilding is the check that applies to a fork.
 
+CI builds this repository alone, so a record describes a build with no
+fetched plugins in it. An instance that installs some cannot produce that
+digest at any commit, and the report says the comparison **cannot apply**
+rather than calling those files wrong. That is not a pass: nothing compared
+those bytes to anything, the exit code stays non-zero, and the plugin list
+that explains it is the instance's own claim. Rebuilding settles it.
+
 A record describes a commit **and** a plugin set, because plugins compile
 into the app. An instance running a different set genuinely has different
 bytes, so its digest will not match the published one - the report says the

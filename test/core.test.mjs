@@ -488,11 +488,20 @@ test("a phantom plugin cannot soften a digest mismatch", () => {
     files: { "/assets/app.js": "honest" },
   };
   const out = checkAgainstRecord(tampered, record);
-  assert.equal(out.status, "mismatch");
+  // Never "verified": the served bytes are not the published build, whatever
+  // the declaration says about why.
+  assert.notEqual(out.status, "verified");
+  // The comparison still HAPPENED and its result is carried, so the report
+  // can show what differs rather than waving the difference away. That is
+  // the property the bypass broke - it returned before comparing at all.
   assert.deepEqual(out.differing.map((d) => d.path), ["/assets/app.js"]);
-  // Still reported, because it is the usual innocent explanation - but as
-  // the instance's own claim attached to a mismatch, not as a verdict.
   assert.equal(out.configurationDiffers, true);
+  // A declared plugin CI cannot have built makes the comparison
+  // inconclusive rather than an accusation - an honest instance with a
+  // plugin would otherwise be told 25 files are wrong. The exit code stays
+  // non-zero either way, so this is not a pass.
+  assert.equal(out.status, "not-comparable");
+  assert.deepEqual(out.unbuiltPlugins, ["phantom"]);
 });
 
 // The honest case still has to read as benign: a self-hoster who added a
@@ -568,4 +577,41 @@ test("a fork is not looked up in upstream's build records", async () => {
   // fingerprint() itself must not reach for a record; that is the CLI's call,
   // and it declines for a fork.
   assert.equal(fetched, false);
+});
+
+// An instance that honestly installed plugins must not be told its files are
+// wrong: CI builds this repository alone, so those digests can never agree,
+// at this commit or any other.
+test("an instance with fetched plugins is inconclusive, not accused", () => {
+  const withPlugins = {
+    claim: {
+      plugins: [
+        { id: "wheel", origin: "in-tree" },
+        { id: "waffle-party", origin: "fetched", source: "o/r", ref: "d00d9db" },
+      ],
+    },
+    digest: "different-because-of-the-plugin",
+    files: [{ path: "/assets/app.js", hash: "with-plugin" }],
+  };
+  const record = {
+    plugins: [{ id: "wheel", origin: "in-tree" }],
+    digest: "ci-build",
+    files: { "/assets/app.js": "without-plugin" },
+  };
+  const out = checkAgainstRecord(withPlugins, record);
+  assert.equal(out.status, "not-comparable");
+  assert.deepEqual(out.unbuiltPlugins, ["waffle-party"]);
+});
+
+// With no fetched plugins there is nothing to explain the difference, so it
+// is a finding and has to read like one.
+test("a plugin-free instance that differs is a mismatch", () => {
+  const out = checkAgainstRecord(
+    { claim: { plugins: [{ id: "wheel", origin: "in-tree" }] },
+      digest: "tampered", files: [{ path: "/a.js", hash: "bad" }] },
+    { plugins: [{ id: "wheel", origin: "in-tree" }],
+      digest: "genuine", files: { "/a.js": "good" } }
+  );
+  assert.equal(out.status, "mismatch");
+  assert.deepEqual(out.differing.map((d) => d.path), ["/a.js"]);
 });

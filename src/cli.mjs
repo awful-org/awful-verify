@@ -409,6 +409,8 @@ async function main(argv) {
     ? { status: "not-upstream", repository: declaredRepo }
     : checkAgainstRecord(result, record);
 
+
+
   const why = await cannotRebuild(result, argv);
   if (json && why) {
     console.log(JSON.stringify({ ...result, published }, null, 2));
@@ -448,6 +450,8 @@ async function main(argv) {
       out.differing.length ||
       out.notBuilt.length ||
       (out.notServedExecutable ?? []).length ||
+      // Only a comparison that COULD have matched counts against the
+      // instance. The rebuild is the stronger check and it has just run.
       published.status === "mismatch";
     return bad ? 1 : 0;
   }
@@ -466,7 +470,10 @@ async function main(argv) {
       )
     );
   }
-  if (published.status === "mismatch") return 1;
+  // Exit 0 means verified. Nothing here verified anything, so anything short
+  // of a match against the published build is a non-zero exit - including a
+  // comparison that could not apply.
+  if (published.status !== "verified") return 1;
   // Unreadable files are a real finding, not a crash.
   return result.files.some((f) => !f.hash) ? 1 : 0;
 }
@@ -505,6 +512,17 @@ function reportPublished(published, result) {
       "ci build", green,
       "matches - GitHub Actions built this commit into these exact bytes\n" +
         indent + dim("that is CI's word, not this instance's")
+    );
+  } else if (published.status === "not-comparable") {
+    line(
+      "ci build", dim,
+      dim(
+        `cannot apply - this instance declares ${published.unbuiltPlugins.length} plugin(s) CI does not\n` +
+          indent + `build (${published.unbuiltPlugins.join(", ")}),\n` +
+          indent + `so its bytes cannot match at any commit. ${published.differing.length} file(s) differ,\n` +
+          indent + "which that would explain - but the plugin list is the instance's\n" +
+          indent + "own claim and nothing here checks it. Rebuild to settle it."
+      )
     );
   } else if (published.status === "mismatch") {
     line(
